@@ -38,14 +38,14 @@ record Person(String name, int age) {
 
 // CtxMap에 저장된 설정 데이터를 표현하는 레코드 정의
 record AppContext(
-    String applicationName,
-    String version,
-    String currentUser,
-    String transactionId,
-    int timeoutSeconds,
-    boolean debugMode,
-    double rateLimit
-) {}
+        String applicationName,
+        String version,
+        String currentUser,
+        String transactionId,
+        int timeoutSeconds,
+        boolean debugMode,
+        double rateLimit) {
+}
 
 public class RecordExample {
     public static void main(String[] args) {
@@ -120,12 +120,28 @@ public class RecordExample {
     private static void demonstrateCtxMapFeatures() {
         System.out.println("\n--- CtxMap (컨텍스트 맵) 활용 예제 ---");
 
-        // 예제에 사용할 Person 데이터
-        Person person = new Person("홍길동", 30);
+        // 1. 초기 데이터 구성
+        CtxMap ctx = createInitialCtxMap();
 
-        // CtxMap 인스턴스 생성 및 데이터 추가 (메소드 체이닝 활용)
-        // CtxMap은 내부적으로 ConcurrentHashMap을 사용하므로 스레드 안전합니다.
-        CtxMap ctx = new CtxMap()
+        // 2. Record 변환 및 활용
+        demonstrateRecordConversion(ctx);
+
+        // 3. 복잡한 데이터 추가 (List, Map 등)
+        addComplexDataTo(ctx);
+
+        // 4. 데이터 조회 기능 검증
+        verifyDataRetrieval(ctx);
+
+        // 5. 전체 출력
+        printAllEntries(ctx);
+
+        // 6. 비즈니스 로직 연동
+        handlePrivateLogic(ctx);
+    }
+
+    private static CtxMap createInitialCtxMap() {
+        Person person = new Person("홍길동", 30);
+        return new CtxMap()
                 .put("applicationName", "RecordExampleApp_V2")
                 .put("version", "1.0.1")
                 .put("currentUser", person.name())
@@ -133,9 +149,9 @@ public class RecordExample {
                 .put("timeoutSeconds", 30) // int 값
                 .put("debugMode", true) // boolean 값
                 .put("rateLimit", 10.5); // double 값
+    }
 
-        // [추가] CtxMap의 데이터를 사용하여 AppContext 레코드 객체 생성
-        // CtxMap의 타입 안전한 조회 메서드(getString, getInt 등)를 활용하여 레코드를 생성합니다.
+    private static void demonstrateRecordConversion(CtxMap ctx) {
         AppContext appContext = new AppContext(
                 ctx.getString("applicationName"),
                 ctx.getString("version"),
@@ -143,13 +159,13 @@ public class RecordExample {
                 ctx.getString("transactionId"),
                 ctx.getInt("timeoutSeconds"),
                 ctx.getBoolean("debugMode"),
-                ctx.getDouble("rateLimit")
-        );
+                ctx.getDouble("rateLimit"));
         System.out.println("CtxMap으로 생성한 AppContext 레코드: " + appContext);
 
-        // [추가] AppContext 레코드를 사용하는 메서드 호출 예제
         processAppContext(appContext);
+    }
 
+    private static void addComplexDataTo(CtxMap ctx) {
         // Map을 사용하여 CtxMap 초기화
         HashMap<String, Object> additionalData = new HashMap<>();
         additionalData.put("source", "API_Gateway");
@@ -165,7 +181,9 @@ public class RecordExample {
                 .put("id", "user_001")
                 .put("roles", List.of("ADMIN", "USER"));
         ctx.put("userInfo", userInfo.asReadOnlyMap()); // 내부 Map은 읽기 전용으로 저장
+    }
 
+    private static void verifyDataRetrieval(CtxMap ctx) {
         // CtxMap에서 타입-안전하게 정보 조회
         System.out.println("CtxMap 정보:");
         System.out.println("  애플리케이션 이름 (String): " + ctx.getString("applicationName"));
@@ -214,16 +232,11 @@ public class RecordExample {
         System.out.println("  'emptyString' 텍스트 존재 여부 (빈 문자열): " + ctx.hasText("emptyString"));
         ctx.put("blankString", "   ");
         System.out.println("  'blankString' 텍스트 존재 여부 (공백 문자열): " + ctx.hasText("blankString"));
+    }
 
-        // CtxMap의 모든 항목을 순회하며 예쁘게 출력
+    private static void printAllEntries(CtxMap ctx) {
         System.out.println("\n  CtxMap 전체 목록:");
-        ctx.asReadOnlyMap().forEach((key, value) -> 
-            System.out.println("    * " + key + " = " + value));
-
-        // [추가] CtxMap을 private 메서드에 전달하여 내부 로직 처리
-        handlePrivateLogic(ctx);
-
-        // --- CtxMap 활용 예제 끝 ---
+        ctx.asReadOnlyMap().forEach((key, value) -> System.out.println("    * " + key + " = " + value));
     }
 
     /**
