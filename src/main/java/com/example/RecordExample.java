@@ -1,10 +1,13 @@
 package com.example;
 
 import util.CtxMap; // util.CtxMap 클래스 임포트
+import util.MapUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map; // Map 사용을 위해 추가
 import java.util.Optional; // Optional 사용을 위해 추가
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 // 'Person'이라는 이름의 레코드 클래스를 정의합니다.
 // 레코드는 불변(immutable) 데이터를 위한 간결한 클래스 선언을 제공합니다.
@@ -49,14 +52,19 @@ record AppContext(
 
 public class RecordExample {
     public static void main(String[] args) {
-        demonstrateRecordFeatures();
-        demonstrateCtxMapFeatures();
+        // [리팩토링] 전역 컨텍스트(CtxMap) 생성 및 전달
+        CtxMap context = new CtxMap();
+
+        demonstrateRecordFeatures(context);
+        demonstrateCtxMapFeatures(context);
+        demonstrateLinkedBlockingQueue(context);
+        demonstrateMapUtils(context);
     }
 
     /**
      * Java Record의 기본 기능(생성, 조회, 불변성, Wither 등)을 시연합니다.
      */
-    private static void demonstrateRecordFeatures() {
+    private static void demonstrateRecordFeatures(CtxMap ctx) {
         // Person 레코드 인스턴스를 생성합니다.
         Person person1 = new Person("홍길동", 30);
         Person person2 = new Person("김철수", 25);
@@ -117,11 +125,11 @@ public class RecordExample {
     /**
      * CtxMap 유틸리티 클래스의 활용 방법을 시연합니다.
      */
-    private static void demonstrateCtxMapFeatures() {
+    private static void demonstrateCtxMapFeatures(CtxMap ctx) {
         System.out.println("\n--- CtxMap (컨텍스트 맵) 활용 예제 ---");
 
         // 1. 초기 데이터 구성
-        CtxMap ctx = createInitialCtxMap();
+        populateInitialData(ctx);
 
         // 2. Record 변환 및 활용
         demonstrateRecordConversion(ctx);
@@ -139,9 +147,9 @@ public class RecordExample {
         handlePrivateLogic(ctx);
     }
 
-    private static CtxMap createInitialCtxMap() {
+    private static void populateInitialData(CtxMap ctx) {
         Person person = new Person("홍길동", 30);
-        return new CtxMap()
+        ctx
                 .put("applicationName", "RecordExampleApp_V2")
                 .put("version", "1.0.1")
                 .put("currentUser", person.name())
@@ -268,5 +276,68 @@ public class RecordExample {
         if (context.debugMode()) {
             System.out.println("  [DEBUG] 트랜잭션 ID: " + context.transactionId());
         }
+    }
+
+    /**
+     * LinkedBlockingQueue를 사용한 큐 동작 예제입니다.
+     * put()은 큐가 꽉 차면 대기하고, take()는 큐가 비면 대기하는 블로킹 동작을 수행합니다.
+     */
+    private static void demonstrateLinkedBlockingQueue(CtxMap ctx) {
+        System.out.println("\n--- LinkedBlockingQueue 활용 예제 ---");
+
+        // 최대 3개의 요소를 담을 수 있는 블로킹 큐 생성
+        BlockingQueue<String> queue = new LinkedBlockingQueue<>(3);
+
+        try {
+            // 1. 데이터 추가 (put: 공간이 있을 때까지 대기, 여기선 바로 추가됨)
+            System.out.println("[Queue] 데이터 추가 중...");
+            queue.put("Job_1");
+            queue.put("Job_2");
+            queue.put("Job_3");
+            System.out.println("  현재 큐 상태: " + queue);
+
+            // 2. offer를 사용한 추가 시도 (큐가 꽉 차서 실패함 -> false 반환, 대기하지 않음)
+            boolean accepted = queue.offer("Job_4");
+            System.out.println("  Job_4 추가 성공 여부 (offer): " + accepted);
+
+            // 3. 데이터 꺼내기 (take: 데이터가 있을 때까지 대기)
+            String job = queue.take();
+            System.out.println("[Queue] 데이터 처리(take): " + job);
+            System.out.println("  처리 후 큐 상태: " + queue);
+
+            // 4. 빈 공간에 다시 추가
+            queue.put("Job_5");
+            System.out.println("[Queue] Job_5 추가 완료. 최종 상태: " + queue);
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println("큐 작업 중 인터럽트 발생");
+        }
+    }
+
+    /**
+     * MapUtils를 사용하여 객체(Record)를 Map으로 변환하는 예제입니다.
+     */
+    private static void demonstrateMapUtils(CtxMap globalCtx) {
+        System.out.println("\n--- MapUtils (Jackson) 활용 예제 ---");
+
+        // 변환할 레코드 객체 생성
+        Person person = new Person("Jang", 45);
+
+        // MapUtils.toMap()을 사용하여 Record -> Map<String, Object> 변환
+        Map<String, Object> personMap = MapUtils.toMap(person);
+
+        System.out.println("원본 Record: " + person);
+        System.out.println("변환된 Map: " + personMap);
+
+        // 변환된 Map을 CtxMap으로 감싸서 활용 가능
+        CtxMap ctx = CtxMap.of(personMap);
+        System.out.println("CtxMap에서 이름 조회: " + ctx.getString("name"));
+
+        // [리팩토링] 변환된 CtxMap을 private 비즈니스 로직 메서드에 전달
+        // handlePrivateLogic 메서드가 필요로 하는 데이터('currentUser')를 매핑해줍니다.
+        ctx.put("currentUser", ctx.getString("name"))
+           .put("debugMode", true);
+        handlePrivateLogic(ctx);
     }
 }
