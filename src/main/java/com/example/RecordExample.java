@@ -3,6 +3,7 @@ package com.example;
 import util.CtxMap; // util.CtxMap 클래스 임포트
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map; // Map 사용을 위해 추가
 import java.util.Optional; // Optional 사용을 위해 추가
 
 // 'Person'이라는 이름의 레코드 클래스를 정의합니다.
@@ -143,7 +144,7 @@ public class RecordExample {
         System.out.println("  존재하지 않는 리스트 (null): " + emptyList);
 
         // getMap으로 맵 조회
-        HashMap userMap = (HashMap) ctx.getMap("userInfo"); // CtxMap의 getMap은 Map<String, Object>를 반환
+        Map<String, Object> userMap = ctx.getMap("userInfo"); // CtxMap의 getMap은 Map<String, Object>를 반환
         if (userMap != null) {
             System.out.println("  사용자 정보 맵 (ID): " + userMap.get("id"));
             System.out.println("  사용자 정보 맵 (Roles): " + userMap.get("roles"));
