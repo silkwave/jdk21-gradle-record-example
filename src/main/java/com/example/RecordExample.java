@@ -29,17 +29,50 @@ record Person(String name, int age) {
     public static void printRecordInfo() {
         System.out.println("Java Records는 데이터를 위한 간결한 불변 클래스를 정의하는 데 유용합니다.");
     }
+
+    // Setter 대신 사용하는 Wither 메서드: 값을 변경한 새로운 인스턴스를 반환
+    public Person withName(String name) {
+        return new Person(name, this.age);
+    }
 }
+
+// CtxMap에 저장된 설정 데이터를 표현하는 레코드 정의
+record AppContext(
+    String applicationName,
+    String version,
+    String currentUser,
+    String transactionId,
+    int timeoutSeconds,
+    boolean debugMode,
+    double rateLimit
+) {}
 
 public class RecordExample {
     public static void main(String[] args) {
+        demonstrateRecordFeatures();
+        demonstrateCtxMapFeatures();
+    }
+
+    /**
+     * Java Record의 기본 기능(생성, 조회, 불변성, Wither 등)을 시연합니다.
+     */
+    private static void demonstrateRecordFeatures() {
         // Person 레코드 인스턴스를 생성합니다.
         Person person1 = new Person("홍길동", 30);
         Person person2 = new Person("김철수", 25);
 
         // 레코드 필드에 접근합니다 (자동 생성된 접근자 메서드 사용).
         System.out.println("Person 1 이름: " + person1.name()); // name() 메서드
-        System.out.println("Person 1 나이: " + person1.age());   // age() 메서드
+        System.out.println("Person 1 나이: " + person1.age()); // age() 메서드
+
+        // person1.name("1111"); // 컴파일 에러: 레코드는 불변이며 name()은 인자를 받지 않는 접근자입니다.
+
+        // [Get 예제] 자동 생성된 접근자(Getter) 사용
+        System.out.println("Get 이름: " + person1.name());
+
+        // [Set 예제] Wither 메서드를 사용하여 값 변경 (새 객체 생성)
+        Person person1New = person1.withName("1111");
+        System.out.println("Set 이름 결과 (새 객체): " + person1New);
 
         // toString() 메서드는 자동으로 생성됩니다.
         System.out.println("Person 1 정보: " + person1);
@@ -79,20 +112,43 @@ public class RecordExample {
         } catch (IllegalArgumentException e) {
             System.err.println("에러 발생: " + e.getMessage());
         }
+    }
 
-        // --- CtxMap 활용 예제 시작 ---
+    /**
+     * CtxMap 유틸리티 클래스의 활용 방법을 시연합니다.
+     */
+    private static void demonstrateCtxMapFeatures() {
         System.out.println("\n--- CtxMap (컨텍스트 맵) 활용 예제 ---");
+
+        // 예제에 사용할 Person 데이터
+        Person person = new Person("홍길동", 30);
 
         // CtxMap 인스턴스 생성 및 데이터 추가 (메소드 체이닝 활용)
         // CtxMap은 내부적으로 ConcurrentHashMap을 사용하므로 스레드 안전합니다.
         CtxMap ctx = new CtxMap()
-            .put("applicationName", "RecordExampleApp_V2")
-            .put("version", "1.0.1")
-            .put("currentUser", person1.name())
-            .put("transactionId", "TXN12345")
-            .put("timeoutSeconds", 30) // int 값
-            .put("debugMode", true) // boolean 값
-            .put("rateLimit", 10.5); // double 값
+                .put("applicationName", "RecordExampleApp_V2")
+                .put("version", "1.0.1")
+                .put("currentUser", person.name())
+                .put("transactionId", "TXN12345")
+                .put("timeoutSeconds", 30) // int 값
+                .put("debugMode", true) // boolean 값
+                .put("rateLimit", 10.5); // double 값
+
+        // [추가] CtxMap의 데이터를 사용하여 AppContext 레코드 객체 생성
+        // CtxMap의 타입 안전한 조회 메서드(getString, getInt 등)를 활용하여 레코드를 생성합니다.
+        AppContext appContext = new AppContext(
+                ctx.getString("applicationName"),
+                ctx.getString("version"),
+                ctx.getString("currentUser"),
+                ctx.getString("transactionId"),
+                ctx.getInt("timeoutSeconds"),
+                ctx.getBoolean("debugMode"),
+                ctx.getDouble("rateLimit")
+        );
+        System.out.println("CtxMap으로 생성한 AppContext 레코드: " + appContext);
+
+        // [추가] AppContext 레코드를 사용하는 메서드 호출 예제
+        processAppContext(appContext);
 
         // Map을 사용하여 CtxMap 초기화
         HashMap<String, Object> additionalData = new HashMap<>();
@@ -106,8 +162,8 @@ public class RecordExample {
 
         // Map<String, Object> 예제 추가
         CtxMap userInfo = new CtxMap()
-            .put("id", "user_001")
-            .put("roles", List.of("ADMIN", "USER"));
+                .put("id", "user_001")
+                .put("roles", List.of("ADMIN", "USER"));
         ctx.put("userInfo", userInfo.asReadOnlyMap()); // 내부 Map은 읽기 전용으로 저장
 
         // CtxMap에서 타입-안전하게 정보 조회
@@ -159,10 +215,45 @@ public class RecordExample {
         ctx.put("blankString", "   ");
         System.out.println("  'blankString' 텍스트 존재 여부 (공백 문자열): " + ctx.hasText("blankString"));
 
+        // CtxMap의 모든 항목을 순회하며 예쁘게 출력
+        System.out.println("\n  CtxMap 전체 목록:");
+        ctx.asReadOnlyMap().forEach((key, value) -> 
+            System.out.println("    * " + key + " = " + value));
 
-        // CtxMap의 모든 항목을 순회하며 출력 (toString 오버라이딩 활용)
-        System.out.println("\n  CtxMap 전체: " + ctx);
+        // [추가] CtxMap을 private 메서드에 전달하여 내부 로직 처리
+        handlePrivateLogic(ctx);
 
         // --- CtxMap 활용 예제 끝 ---
+    }
+
+    /**
+     * CtxMap을 전달받아 처리하는 private 메서드입니다.
+     * 외부로 노출되지 않는 내부 비즈니스 로직을 캡슐화할 때 사용합니다.
+     */
+    private static void handlePrivateLogic(CtxMap ctx) {
+        System.out.println("\n--- [Private Method] 내부 로직 처리 ---");
+
+        // CtxMap에서 데이터 조회
+        String user = ctx.getString("currentUser");
+        boolean debug = ctx.getBoolean("debugMode");
+
+        System.out.println("  내부 로직에서 사용자 확인: " + user);
+
+        if (debug) {
+            System.out.println("  [보안 로그] 디버그 모드로 인해 상세 정보를 기록합니다.");
+            // 필요한 경우 여기서 추가적인 민감한 처리를 수행
+        }
+    }
+
+    /**
+     * AppContext 레코드를 전달받아 처리하는 메서드입니다.
+     * Map 대신 명시적인 타입을 사용하므로 컴파일 시점에 타입 체크가 가능합니다.
+     */
+    private static void processAppContext(AppContext context) {
+        System.out.println("\n--- [AppContext 처리] 레코드 기반 로직 ---");
+        System.out.println("  앱 이름: " + context.applicationName());
+        if (context.debugMode()) {
+            System.out.println("  [DEBUG] 트랜잭션 ID: " + context.transactionId());
+        }
     }
 }
