@@ -1,0 +1,21 @@
+# Gradle files
+.gradle/
+build/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Compiled output
+*.class
+*.jar
+*.war
+*.ear
+
+# Logs and other temporary files
+*.log
+tmp/
+
+# OS-specific files
+.DS_Store
