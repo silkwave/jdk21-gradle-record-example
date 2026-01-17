@@ -1,5 +1,7 @@
 package com.example;
 
+import java.util.Map;
+
 // 'Person'이라는 이름의 레코드 클래스를 정의합니다.
 // 레코드는 불변(immutable) 데이터를 위한 간결한 클래스 선언을 제공합니다.
 // 자동으로 final 필드, 접근자(accessor) 메서드, equals(), hashCode(), toString() 메서드를 생성합니다.
@@ -73,5 +75,33 @@ public class RecordExample {
         } catch (IllegalArgumentException e) {
             System.err.println("에러 발생: " + e.getMessage());
         }
+
+        // --- ctxMap 예제 시작 ---
+        System.out.println("\n--- ctxMap (컨텍스트 맵) 예제 ---");
+
+        // 애플리케이션의 특정 컨텍스트 정보를 저장할 맵을 생성합니다.
+        // 여기서는 불변(immutable) 맵을 사용합니다.
+        Map<String, Object> ctxMap = Map.of(
+            "applicationName", "RecordExampleApp",
+            "version", "1.0.0",
+            "currentUser", person1.name(),
+            "transactionId", "TXN12345"
+        );
+
+        // ctxMap에서 정보를 조회하고 출력합니다.
+        System.out.println("컨텍스트 맵 정보:");
+        System.out.println("  애플리케이션 이름: " + ctxMap.get("applicationName"));
+        System.out.println("  버전: " + ctxMap.get("version"));
+        System.out.println("  현재 사용자: " + ctxMap.get("currentUser"));
+        System.out.println("  트랜잭션 ID: " + ctxMap.get("transactionId"));
+
+        // 존재하지 않는 키를 조회하면 null이 반환됩니다.
+        System.out.println("  존재하지 않는 키 (예: 'sessionId'): " + ctxMap.get("sessionId"));
+
+        // 맵의 모든 항목을 순회하며 출력할 수도 있습니다.
+        System.out.println("\n  컨텍스트 맵의 모든 항목:");
+        ctxMap.forEach((key, value) -> System.out.println("    " + key + ": " + value));
+
+        // --- ctxMap 예제 끝 ---
     }
 }
