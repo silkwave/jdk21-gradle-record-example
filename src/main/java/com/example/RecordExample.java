@@ -1,6 +1,9 @@
 package com.example;
 
-import java.util.Map;
+import util.CtxMap; // util.CtxMap 클래스 임포트
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional; // Optional 사용을 위해 추가
 
 // 'Person'이라는 이름의 레코드 클래스를 정의합니다.
 // 레코드는 불변(immutable) 데이터를 위한 간결한 클래스 선언을 제공합니다.
@@ -76,32 +79,89 @@ public class RecordExample {
             System.err.println("에러 발생: " + e.getMessage());
         }
 
-        // --- ctxMap 예제 시작 ---
-        System.out.println("\n--- ctxMap (컨텍스트 맵) 예제 ---");
+        // --- CtxMap 활용 예제 시작 ---
+        System.out.println("\n--- CtxMap (컨텍스트 맵) 활용 예제 ---");
 
-        // 애플리케이션의 특정 컨텍스트 정보를 저장할 맵을 생성합니다.
-        // 여기서는 불변(immutable) 맵을 사용합니다.
-        Map<String, Object> ctxMap = Map.of(
-            "applicationName", "RecordExampleApp",
-            "version", "1.0.0",
-            "currentUser", person1.name(),
-            "transactionId", "TXN12345"
-        );
+        // CtxMap 인스턴스 생성 및 데이터 추가 (메소드 체이닝 활용)
+        // CtxMap은 내부적으로 ConcurrentHashMap을 사용하므로 스레드 안전합니다.
+        CtxMap ctx = new CtxMap()
+            .put("applicationName", "RecordExampleApp_V2")
+            .put("version", "1.0.1")
+            .put("currentUser", person1.name())
+            .put("transactionId", "TXN12345")
+            .put("timeoutSeconds", 30) // int 값
+            .put("debugMode", true) // boolean 값
+            .put("rateLimit", 10.5); // double 값
 
-        // ctxMap에서 정보를 조회하고 출력합니다.
-        System.out.println("컨텍스트 맵 정보:");
-        System.out.println("  애플리케이션 이름: " + ctxMap.get("applicationName"));
-        System.out.println("  버전: " + ctxMap.get("version"));
-        System.out.println("  현재 사용자: " + ctxMap.get("currentUser"));
-        System.out.println("  트랜잭션 ID: " + ctxMap.get("transactionId"));
+        // Map을 사용하여 CtxMap 초기화
+        HashMap<String, Object> additionalData = new HashMap<>();
+        additionalData.put("source", "API_Gateway");
+        additionalData.put("requestCount", 100L); // long 값
+        ctx.putAll(additionalData);
 
-        // 존재하지 않는 키를 조회하면 null이 반환됩니다.
-        System.out.println("  존재하지 않는 키 (예: 'sessionId'): " + ctxMap.get("sessionId"));
+        // List<String> 예제 추가
+        List<String> featureFlags = List.of("FEATURE_A", "FEATURE_B", "FEATURE_C");
+        ctx.put("featureFlags", featureFlags);
 
-        // 맵의 모든 항목을 순회하며 출력할 수도 있습니다.
-        System.out.println("\n  컨텍스트 맵의 모든 항목:");
-        ctxMap.forEach((key, value) -> System.out.println("    " + key + ": " + value));
+        // Map<String, Object> 예제 추가
+        CtxMap userInfo = new CtxMap()
+            .put("id", "user_001")
+            .put("roles", List.of("ADMIN", "USER"));
+        ctx.put("userInfo", userInfo.asReadOnlyMap()); // 내부 Map은 읽기 전용으로 저장
 
-        // --- ctxMap 예제 끝 ---
+        // CtxMap에서 타입-안전하게 정보 조회
+        System.out.println("CtxMap 정보:");
+        System.out.println("  애플리케이션 이름 (String): " + ctx.getString("applicationName"));
+        System.out.println("  버전 (String, 기본값): " + ctx.getString("version", "N/A"));
+        System.out.println("  현재 사용자 (String): " + ctx.getString("currentUser"));
+        System.out.println("  트랜잭션 ID (String): " + ctx.getString("transactionId"));
+        System.out.println("  타임아웃 (int): " + ctx.getInt("timeoutSeconds"));
+        System.out.println("  디버그 모드 (boolean): " + ctx.getBoolean("debugMode"));
+        System.out.println("  속도 제한 (double): " + ctx.getDouble("rateLimit"));
+        System.out.println("  소스 (String): " + ctx.getString("source"));
+        System.out.println("  요청 수 (long): " + ctx.getLong("requestCount"));
+
+        // 존재하지 않는 키 조회 시 기본값 활용
+        System.out.println("  존재하지 않는 String 키 (기본값 제공): " + ctx.getString("nonExistentKey", "기본값"));
+        System.out.println("  존재하지 않는 int 키 (기본값 제공): " + ctx.getInt("nonExistentInt", 999));
+
+        // Optional을 사용한 조회 예제 (NPE 방지)
+        Optional<String> optionalUser = ctx.getOptional("currentUser", String.class);
+        optionalUser.ifPresent(u -> System.out.println("  Optional 사용자: " + u));
+
+        Optional<Integer> optionalInvalidInt = ctx.getOptional("invalidIntKey", Integer.class);
+        System.out.println("  Optional 존재하지 않는 int (isPresent): " + optionalInvalidInt.isPresent());
+
+        // getObject로 특정 타입 조회
+        Integer timeout = ctx.getObject("timeoutSeconds", Integer.class);
+        System.out.println("  getObject로 조회한 타임아웃 (Integer): " + timeout);
+
+        // getList로 리스트 조회
+        List<String> flags = ctx.getList("featureFlags", String.class);
+        System.out.println("  기능 플래그 (List<String>): " + flags);
+        List<Integer> emptyList = ctx.getList("nonExistentList", Integer.class);
+        System.out.println("  존재하지 않는 리스트 (null): " + emptyList);
+
+        // getMap으로 맵 조회
+        HashMap userMap = (HashMap) ctx.getMap("userInfo"); // CtxMap의 getMap은 Map<String, Object>를 반환
+        if (userMap != null) {
+            System.out.println("  사용자 정보 맵 (ID): " + userMap.get("id"));
+            System.out.println("  사용자 정보 맵 (Roles): " + userMap.get("roles"));
+        }
+
+        // hasText 및 containsKey 예제
+        System.out.println("  'applicationName' 키 존재 여부: " + ctx.containsKey("applicationName"));
+        System.out.println("  'applicationName' 텍스트 존재 여부: " + ctx.hasText("applicationName"));
+        System.out.println("  'emptyString' 텍스트 존재 여부 (없음): " + ctx.hasText("emptyString"));
+        ctx.put("emptyString", "");
+        System.out.println("  'emptyString' 텍스트 존재 여부 (빈 문자열): " + ctx.hasText("emptyString"));
+        ctx.put("blankString", "   ");
+        System.out.println("  'blankString' 텍스트 존재 여부 (공백 문자열): " + ctx.hasText("blankString"));
+
+
+        // CtxMap의 모든 항목을 순회하며 출력 (toString 오버라이딩 활용)
+        System.out.println("\n  CtxMap 전체: " + ctx);
+
+        // --- CtxMap 활용 예제 끝 ---
     }
 }
