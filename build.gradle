@@ -22,6 +22,11 @@ application {
     mainClass = 'com.example.RecordExample'
 }
 
+dependencies {
+    // Jackson Databind (includes core and annotations)
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.0' // 또는 최신 버전
+}
+
 tasks.named('test') {
     useJUnitPlatform()
 }
